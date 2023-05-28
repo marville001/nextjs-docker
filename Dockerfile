@@ -1,19 +1,18 @@
-# Build Stage
-FROM node:16-alpine AS BUILD_IMAGE
+FROM node:18-alpine as builder
 WORKDIR /app
-COPY package*.json ./
+
+COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
 
-
-# Production Stage
-FROM node:16-alpine AS PRODUCTION_STAGE
+FROM node:18-alpine as runner
 WORKDIR /app
-COPY --from=BUILD_IMAGE /app/package*.json ./
-COPY --from=BUILD_IMAGE /app/.next ./.next
-COPY --from=BUILD_IMAGE /app/public ./public
-COPY --from=BUILD_IMAGE /app/node_modules ./node_modules
-ENV NODE_ENV=production
+COPY --from=builder /app/package.json .
+COPY --from=builder /app/package-lock.json .
+COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 EXPOSE 3000
-CMD ["npm", "start"]
+ENTRYPOINT ["npm", "start"]
